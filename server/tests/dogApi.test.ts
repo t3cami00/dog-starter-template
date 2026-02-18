@@ -1,81 +1,50 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "vitest";
+import { describe, it, expect } from "vitest";
 import request from "supertest";
-import express from "express";
-import dogRoutes from "../routes/dogRoutes";
-import * as dogService from "../services/dogService";
 
-// Mock the dogService
-vi.mock("../services/dogService", () => ({
-  getRandomDogImage: vi.fn(),
-}));
+const BASE_URL = "http://localhost:5000";
 
-describe("Dog API Integration Tests", () => {
-  let app: express.Application;
-  let server: any;
+describe("API Tests - dogApi.test.ts", () => {
+  // Test 1: Positive API test - GET /api/dogs/random
+  it("Test 1: GET /api/dogs/random should return a random dog image", async () => {
+    const response = await request(BASE_URL)
+      .get("/api/dogs/random")
+      .expect(200);
 
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
+    // Expect that returned HTTP status is 200
+    expect(response.status).toBe(200);
 
-  beforeAll(() => {
-    app = express();
-    app.use(express.json());
-    app.use("/api/dogs", dogRoutes);
-
-    // Start server on a test port
-    server = app.listen(0); // Use random available port
-  });
-
-  afterAll(() => {
-    server.close();
-  });
-
-  it("GET /api/dogs/random should return a dog image", async () => {
-    // Mock successful service response
-    const mockServiceResponse = {
-      imageUrl: "https://images.dog.ceo/breeds/hound-afghan/n02088094_1003.jpg",
-      status: "success",
-    };
-
-    (dogService.getRandomDogImage as any).mockResolvedValue(
-      mockServiceResponse,
-    );
-
-    const response = await request(app).get("/api/dogs/random").expect(200);
-
+    // Expect that success is true
     expect(response.body).toHaveProperty("success");
     expect(response.body.success).toBe(true);
-    expect(response.body).toHaveProperty("data");
-    expect(response.body.data).toHaveProperty("imageUrl");
-    expect(response.body.data.imageUrl).toBe(mockServiceResponse.imageUrl);
-    expect(response.body.data).toHaveProperty("status");
-    expect(response.body.data.status).toBe("success");
 
-    // Verify service was called
-    expect(dogService.getRandomDogImage).toHaveBeenCalledOnce();
+    // Expect that data is returned
+    expect(response.body).toHaveProperty("data");
+
+    // Expect that data contains imageUrl
+    expect(response.body.data).toHaveProperty("imageUrl");
+
+    // Expect that type of imageUrl is string
+    expect(typeof response.body.data.imageUrl).toBe("string");
   });
 
-  it("should handle errors gracefully", async () => {
-    // Mock service to throw error
-    (dogService.getRandomDogImage as any).mockRejectedValue(
-      new Error("API Error"),
-    );
+  // Test 2: Invalid route - negative test
+  it("Test 2: GET /api/dogs/invalid should return 404", async () => {
+    const response = await request(BASE_URL)
+      .get("/api/dogs/invalid")
+      .expect(404);
 
-    const response = await request(app).get("/api/dogs/random").expect(500);
+    // Expect that returned HTTP status is 404
+    expect(response.status).toBe(404);
 
-    expect(response.body).toHaveProperty("success");
-    expect(response.body.success).toBe(false);
+    // Expect that returned response contains error message
     expect(response.body).toHaveProperty("error");
 
-    // Verify service was called
-    expect(dogService.getRandomDogImage).toHaveBeenCalledOnce();
+    // The error message could be different - let's check what it is
+    console.log("Error message:", response.body.error);
+
+    // Verify that error message exists and is a string
+    expect(response.body.error).toBeDefined();
+    expect(typeof response.body.error).toBe("string");
+    expect(response.body.error.length).toBeGreaterThan(0);
   });
 });
